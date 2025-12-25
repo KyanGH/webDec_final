@@ -14,13 +14,27 @@ let selectedVideo = null;
    Playlist helpers
 ============================ */
 function getUserPlaylists() {
-  const playlists = JSON.parse(localStorage.getItem("playlists")) || {};
-  return playlists[user.username] || [];
+  const playlistsData = JSON.parse(localStorage.getItem("playlists")) || {};
+  const userPlaylists = playlistsData[user.username] || [];
+
+  // Normalize old playlists
+  userPlaylists.forEach(pl => {
+    if (!Array.isArray(pl.videos)) {
+      pl.videos = [];
+    }
+  });
+
+  return userPlaylists;
 }
 
+
 function isVideoInPlaylist(videoId, playlist) {
-  return playlist.videos.some(v => v.id.videoId === videoId);
+  if (!playlist || !Array.isArray(playlist.videos)) {
+    return false;
+  }
+  return playlist.videos.some(v => v.id?.videoId === videoId);
 }
+
 
 function isVideoInAnyPlaylist(videoId) {
   return getUserPlaylists().some(pl =>
@@ -184,15 +198,17 @@ document.getElementById("saveToPlaylist").onclick = () => {
     if (!playlist) return;
   }
 
-  // HARD duplicate prevention (per playlist)
-  if (
-    playlist.videos.some(
-      v => v.id.videoId === selectedVideo.id.videoId
-    )
-  ) {
-    alert("This song already exists in this playlist.");
-    return;
-  }
+  // 🔒 Ensure videos array always exists
+playlist.videos = playlist.videos || [];
+
+if (
+  playlist.videos.some(
+    v => v.id?.videoId === selectedVideo.id.videoId
+  )
+) {
+  alert("This song already exists in this playlist.");
+  return;
+}
 
   playlist.videos.push(selectedVideo);
   localStorage.setItem("playlists", JSON.stringify(playlistsData));
