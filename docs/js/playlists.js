@@ -1,8 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* ======================
-     Globals & State
-  ====================== */
   const user = JSON.parse(sessionStorage.getItem("currentUser"));
   const playlistsData = JSON.parse(localStorage.getItem("playlists")) || {};
   let playlists = playlistsData[user.username] || [];
@@ -10,9 +7,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentIndex = null;
   let playQueue = [];
   let currentPlayIndex = 0;
-  let ytPlayer = null;
 
-  const playerFrame = document.getElementById("playerFrame");
+  let ytPlayer = null;
+  let pendingVideoId = null;
+
   const playAllBtn = document.getElementById("playAllBtn");
 
   /* ======================
@@ -31,14 +29,9 @@ document.addEventListener("DOMContentLoaded", () => {
       list.appendChild(li);
     });
 
-    if (playlists.length > 0) {
-      selectPlaylist(0);
-    }
+    if (playlists.length > 0) selectPlaylist(0);
   }
 
-  /* ======================
-     Select playlist
-  ====================== */
   function selectPlaylist(index) {
     currentIndex = index;
 
@@ -55,9 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSongs();
   }
 
-  /* ======================
-     Render songs
-  ====================== */
   function renderSongs(filter = "") {
     const container = document.getElementById("songs");
     container.innerHTML = "";
@@ -65,9 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const videos = playlists[currentIndex]?.videos || [];
 
     videos
-      .filter(v =>
-        v.snippet.title.toLowerCase().includes(filter)
-      )
+      .filter(v => v.snippet.title.toLowerCase().includes(filter))
       .forEach((video, i) => {
         video.rating = video.rating || 0;
 
@@ -80,17 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong style="cursor:pointer"
               onclick="playSingle('${video.id.videoId}')">
               ▶ ${video.snippet.title}
-            </strong><br>
-
-            Rating:
-            ${[1,2,3,4,5].map(n =>
-              `<span style="cursor:pointer"
-                onclick="rateSong(${i},${n})">
-                ${n <= video.rating ? "⭐" : "☆"}
-              </span>`
-            ).join("")}
+            </strong>
           </div>
-
           <button class="btn btn-sm btn-outline-danger"
             onclick="deleteSong(${i})">
             Delete
@@ -101,39 +80,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  /* ======================
-     Play single
-  ====================== */
-  window.playSingle = function (videoId) {
-    playQueue = [];
-    playerFrame.src =
-      `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-
-    bootstrap.Modal
-      .getOrCreateInstance(document.getElementById("playerModal"))
-      .show();
-  };
-
-  /* ======================
-     Play all
-  ====================== */
-  playAllBtn.onclick = playAllCurrentPlaylist;
-
-  function playAllCurrentPlaylist() {
-    if (currentIndex === null) return;
-
-    const videos = playlists[currentIndex].videos || [];
-    if (videos.length === 0) return;
-
-    playQueue = videos.map(v => v.id.videoId);
-    currentPlayIndex = 0;
-
-    playVideoById(playQueue[0]);
-  }
-
   function playVideoById(videoId) {
-    playerFrame.src =
-      `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    pendingVideoId = videoId;
+
+    if (ytPlayer) {
+      ytPlayer.loadVideoById(videoId);
+    }
 
     bootstrap.Modal
       .getOrCreateInstance(document.getElementById("playerModal"))
@@ -146,14 +98,39 @@ document.addEventListener("DOMContentLoaded", () => {
     playVideoById(playQueue[currentPlayIndex]);
   }
 
+  window.playSingle = function (videoId) {
+    playQueue = [];
+    currentPlayIndex = 0;
+    playVideoById(videoId);
+  };
+
+  playAllBtn.onclick = () => {
+    if (currentIndex === null) return;
+
+    const videos = playlists[currentIndex].videos || [];
+    if (!videos.length) return;
+
+    playQueue = videos.map(v => v.id.videoId);
+    currentPlayIndex = 0;
+    playVideoById(playQueue[0]);
+  };
+
   /* ======================
      YouTube API
   ====================== */
   window.onYouTubeIframeAPIReady = function () {
     ytPlayer = new YT.Player("playerFrame", {
+      height: "500",
+      width: "100%",
+      playerVars: { autoplay: 1, rel: 0 },
       events: {
-        onStateChange: (event) => {
-          if (event.data === YT.PlayerState.ENDED) {
+        onReady: () => {
+          if (pendingVideoId) {
+            ytPlayer.loadVideoById(pendingVideoId);
+          }
+        },
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.ENDED) {
             playNext();
           }
         }
@@ -161,93 +138,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  /* ======================
-     Stop on close
-  ====================== */
   document
     .getElementById("playerModal")
     .addEventListener("hidden.bs.modal", () => {
-      playerFrame.src = "";
+      if (ytPlayer) ytPlayer.stopVideo();
       playQueue = [];
       currentPlayIndex = 0;
+      pendingVideoId = null;
     });
 
-  /* ======================
-     Search
-  ====================== */
-  document.getElementById("songSearch").oninput = e =>
-    renderSongs(e.target.value.toLowerCase());
-
-  /* ======================
-     Sort
-  ====================== */
-  window.sortSongs = function (type) {
-    const videos = playlists[currentIndex].videos;
-
-    if (type === "alpha") {
-      videos.sort((a, b) =>
-        a.snippet.title.localeCompare(b.snippet.title)
-      );
-    } else {
-      videos.sort((a, b) =>
-        (b.rating || 0) - (a.rating || 0)
-      );
-    }
-
-    save();
-    renderSongs();
-  };
-
-  /* ======================
-     Rate
-  ====================== */
-  window.rateSong = function (i, rating) {
-    playlists[currentIndex].videos[i].rating = rating;
-    save();
-    renderSongs();
-  };
-
-  /* ======================
-     Delete song
-  ====================== */
-  window.deleteSong = function (i) {
-    playlists[currentIndex].videos.splice(i, 1);
-    save();
-    renderSongs();
-  };
-
-  /* ======================
-     Create playlist
-  ====================== */
-  window.createPlaylist = function () {
-    const name = document.getElementById("newPlaylistName").value.trim();
-    if (!name) return;
-
-    playlists.push({ name, videos: [] });
-    save();
-    loadPlaylists();
-  };
-
-  /* ======================
-     Delete playlist
-  ====================== */
-  document.getElementById("deletePlaylistBtn").onclick = () => {
-    if (currentIndex === null) return;
-    playlists.splice(currentIndex, 1);
-    save();
-    location.reload();
-  };
-
-  /* ======================
-     Save
-  ====================== */
   function save() {
     playlistsData[user.username] = playlists;
     localStorage.setItem("playlists", JSON.stringify(playlistsData));
   }
 
-  /* ======================
-     Init
-  ====================== */
   loadPlaylists();
 });
