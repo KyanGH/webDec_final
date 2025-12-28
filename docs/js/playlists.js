@@ -10,9 +10,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentIndex = null;
   let playQueue = [];
   let currentPlayIndex = 0;
+  let ytPlayer = null;
 
   const playerFrame = document.getElementById("playerFrame");
-  const playAllBtn = document.getElementById("sidebarPlayAllBtn");
+  const playAllBtn = document.getElementById("playAllBtn");
 
   /* ======================
      Load playlists
@@ -20,8 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadPlaylists() {
     const list = document.getElementById("playlistList");
     list.innerHTML = "";
-
-    // Hide Play All until playlist is selected
     playAllBtn.classList.add("d-none");
 
     playlists.forEach((pl, i) => {
@@ -79,21 +78,21 @@ document.addEventListener("DOMContentLoaded", () => {
         div.innerHTML = `
           <div>
             <strong style="cursor:pointer"
-                    onclick="playSingle('${video.id.videoId}')">
+              onclick="playSingle('${video.id.videoId}')">
               ▶ ${video.snippet.title}
             </strong><br>
 
             Rating:
             ${[1,2,3,4,5].map(n =>
               `<span style="cursor:pointer"
-                     onclick="rateSong(${i},${n})">
+                onclick="rateSong(${i},${n})">
                 ${n <= video.rating ? "⭐" : "☆"}
               </span>`
             ).join("")}
           </div>
 
           <button class="btn btn-sm btn-outline-danger"
-                  onclick="deleteSong(${i})">
+            onclick="deleteSong(${i})">
             Delete
           </button>
         `;
@@ -107,7 +106,6 @@ document.addEventListener("DOMContentLoaded", () => {
   ====================== */
   window.playSingle = function (videoId) {
     playQueue = [];
-
     playerFrame.src =
       `https://www.youtube.com/embed/${videoId}?autoplay=1`;
 
@@ -117,9 +115,11 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /* ======================
-     Play all (sidebar)
+     Play all
   ====================== */
-  playAllBtn.onclick = () => {
+  playAllBtn.onclick = playAllCurrentPlaylist;
+
+  function playAllCurrentPlaylist() {
     if (currentIndex === null) return;
 
     const videos = playlists[currentIndex].videos || [];
@@ -127,34 +127,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
     playQueue = videos.map(v => v.id.videoId);
     currentPlayIndex = 0;
-    playNext();
-  };
 
-  function playNext() {
-    if (currentPlayIndex >= playQueue.length) return;
+    playVideoById(playQueue[0]);
+  }
 
+  function playVideoById(videoId) {
     playerFrame.src =
-      `https://www.youtube.com/embed/${playQueue[currentPlayIndex]}?autoplay=1`;
-
-    currentPlayIndex++;
+      `https://www.youtube.com/embed/${videoId}?autoplay=1`;
 
     bootstrap.Modal
       .getOrCreateInstance(document.getElementById("playerModal"))
       .show();
   }
 
+  function playNext() {
+    currentPlayIndex++;
+    if (currentPlayIndex >= playQueue.length) return;
+    playVideoById(playQueue[currentPlayIndex]);
+  }
+
   /* ======================
-     Stop player on close
+     YouTube API
+  ====================== */
+  window.onYouTubeIframeAPIReady = function () {
+    ytPlayer = new YT.Player("playerFrame", {
+      events: {
+        onStateChange: (event) => {
+          if (event.data === YT.PlayerState.ENDED) {
+            playNext();
+          }
+        }
+      }
+    });
+  };
+
+  /* ======================
+     Stop on close
   ====================== */
   document
     .getElementById("playerModal")
     .addEventListener("hidden.bs.modal", () => {
       playerFrame.src = "";
       playQueue = [];
+      currentPlayIndex = 0;
     });
 
   /* ======================
-     Search inside playlist
+     Search
   ====================== */
   document.getElementById("songSearch").oninput = e =>
     renderSongs(e.target.value.toLowerCase());
@@ -180,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /* ======================
-     Rate song
+     Rate
   ====================== */
   window.rateSong = function (i, rating) {
     playlists[currentIndex].videos[i].rating = rating;
@@ -214,7 +233,6 @@ document.addEventListener("DOMContentLoaded", () => {
   ====================== */
   document.getElementById("deletePlaylistBtn").onclick = () => {
     if (currentIndex === null) return;
-
     playlists.splice(currentIndex, 1);
     save();
     location.reload();
@@ -232,5 +250,4 @@ document.addEventListener("DOMContentLoaded", () => {
      Init
   ====================== */
   loadPlaylists();
-
 });

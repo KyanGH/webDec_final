@@ -54,10 +54,6 @@
 
         <ul class="list-group mb-3" id="playlistList"></ul>
 
-        <button class="btn btn-success d-none" id="sidebarPlayAllBtn">
-          ▶ Play All
-        </button>
-
         <button class="btn btn-outline-danger w-100" id="deletePlaylistBtn">
           Delete Playlist
         </button>
@@ -67,6 +63,10 @@
       <div class="flex-grow-1 p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4 id="playlistTitle">Select a playlist</h4>
+
+          <button id="playAllBtn" class="btn btn-success btn-sm d-none">
+            ▶ Play All
+          </button>
         </div>
 
         <div id="controls" class="d-none mb-3">
@@ -108,8 +108,7 @@
               height="500"
               frameborder="0"
               allowfullscreen
-            >
-            </iframe>
+            ></iframe>
           </div>
         </div>
       </div>
@@ -133,6 +132,8 @@
       </div>
     </div>
 
+    <!-- REQUIRED SCRIPTS -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/playlists.js"></script>
