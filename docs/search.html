@@ -73,18 +73,48 @@
           <h5 class="mb-2">Add to Playlist</h5>
           <p class="text-muted mb-3" id="modalVideoTitle"></p>
 
-          <label class="form-label">Choose existing playlist</label>
-          <select id="playlistSelect" class="form-select mb-3"></select>
+          <!-- Existing playlist -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="playlistMode"
+                id="modeExisting"
+                checked
+              />
+              <label class="form-check-label fw-semibold" for="modeExisting">
+                Add to existing playlist
+              </label>
+            </div>
 
-          <div class="text-center text-muted mb-2">— OR —</div>
+            <select id="playlistSelect" class="form-select mt-2"></select>
+          </div>
 
-          <label class="form-label">Create new playlist</label>
-          <input
-            type="text"
-            id="newPlaylistName"
-            class="form-control mb-3"
-            placeholder="New playlist name"
-          />
+          <hr />
+
+          <!-- New playlist -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                name="playlistMode"
+                id="modeNew"
+              />
+              <label class="form-check-label fw-semibold" for="modeNew">
+                Create new playlist
+              </label>
+            </div>
+
+            <input
+              type="text"
+              id="newPlaylistName"
+              class="form-control mt-2"
+              placeholder="New playlist name"
+              disabled
+            />
+          </div>
 
           <div class="d-flex justify-content-end gap-2">
             <button class="btn btn-secondary" data-bs-dismiss="modal">
