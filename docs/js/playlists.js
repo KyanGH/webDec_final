@@ -63,13 +63,27 @@ document.addEventListener("DOMContentLoaded", () => {
         div.className =
           "list-group-item d-flex justify-content-between align-items-center song-card";
 
+        const starsHtml = [1, 2, 3, 4, 5]
+          .map(n => {
+            return `
+              <span
+                style="cursor:pointer; font-size: 1.2rem"
+                onclick="rateSong(${i}, ${n})">
+                ${n <= video.rating ? "⭐" : "☆"}
+              </span>
+            `;
+          })
+          .join("");
+
         div.innerHTML = `
           <div>
             <strong style="cursor:pointer"
               onclick="playSingle('${video.id.videoId}')">
               ▶ ${video.snippet.title}
-            </strong>
+            </strong><br>
+            Rating: ${starsHtml}
           </div>
+
           <button class="btn btn-sm btn-outline-danger"
             onclick="deleteSong(${i})">
             Delete
@@ -80,6 +94,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
+  /* ======================
+     Playback
+  ====================== */
   function playVideoById(videoId) {
     pendingVideoId = videoId;
 
@@ -114,6 +131,36 @@ document.addEventListener("DOMContentLoaded", () => {
     currentPlayIndex = 0;
     playVideoById(playQueue[0]);
   };
+
+  /* ======================
+     Rating
+  ====================== */
+  window.rateSong = function (index, rating) {
+    playlists[currentIndex].videos[index].rating = rating;
+    save();
+    renderSongs();
+  };
+
+  window.sortSongs = function (type) {
+  if (currentIndex === null) return;
+
+  const videos = playlists[currentIndex].videos;
+  if (!videos || videos.length === 0) return;
+
+  if (type === "alpha") {
+    videos.sort((a, b) =>
+      a.snippet.title.localeCompare(b.snippet.title)
+    );
+  } else if (type === "rating") {
+    videos.sort((a, b) =>
+      (b.rating || 0) - (a.rating || 0)
+    );
+  }
+
+  save();
+  renderSongs();
+};
+
 
   /* ======================
      YouTube API
